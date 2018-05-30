@@ -32,7 +32,8 @@ data Field v a where
     -- A list of (group name, [(identifier, (value, view))]).
     -- Then we have the default index in the list.
     -- The return value has the actual value as well as the index in the list.
-    Choice    :: [(Text, [(Text, (a, v))])] -> [Int] -> Field v [(a, Int)]
+    Choice    :: [(Text, [(Text, (a, v))])] -> Int -> Field v (a, Int)
+    Choices   :: [(Text, [(Text, (a, v))])] -> [Int] -> Field v [(a, Int)]
     Bool      :: Bool -> Field v Bool
     File      :: Field v [FilePath]
 
@@ -42,6 +43,7 @@ instance Show (Field v a) where
     show (Singleton _) = "Singleton _"
     show (Text t)      = "Text " ++ show t
     show (Choice _ _)  = "Choice _ _"
+    show (Choices _ _) = "Choices _ _"
     show (Bool b)      = "Bool " ++ show b
     show (File)        = "File"
 
@@ -61,16 +63,32 @@ evalField :: Method       -- ^ Get/Post
 evalField _    _                 (Singleton x) = x
 evalField _    (TextInput x : _) (Text _)      = x
 evalField _    _                 (Text x)      = x
-evalField _ ts@(TextInput _ : _) (Choice ls _) =
+evalField _    (TextInput x : _) (Choice ls' y) =
+  let
+    ls = concat (map snd ls')
+
+    def = (fst (snd (ls !! y)), y)
+
+    selected :: Maybe Int
+    selected = findIndex (isSelectedChoice x . fst) ls
+  in
+    maybe def (\i -> (fst $ snd $ ls !! i, i)) selected {-do
+        t      <- listToMaybe $ reverse $ toPath x
+        (c, i) <- lookupIdx t ls
+        return (fst c, i)-}
+evalField _    _                 (Choice ls' x) =
+  let ls = concat (map snd ls') in
+    (fst (snd (ls !! x)), x)
+evalField _ ts@(TextInput _ : _) (Choices ls _) =
   let ls' = concat (map snd ls) in
     catMaybes $
       map (\(TextInput x) ->
         (\i -> (fst $ snd $ ls' !! i, i)) <$> findIndex (isSelectedChoice x . fst) ls') ts
-evalField Get  _                 (Choice ls x) =
+evalField Get  _                 (Choices ls x) =
   -- this populates the default values when displaying a view
   let ls' = concat (map snd ls) in
     map (\i -> (fst $ snd $ ls' !! i, i)) x
-evalField Post _                 (Choice _  _) = []
+evalField Post _                 (Choices _  _) = []
 evalField Get  _                 (Bool x)      = x
 evalField Post (TextInput x : _) (Bool _)      = x == "on"
 evalField Post _                 (Bool _)      = False
@@ -86,6 +104,8 @@ evalField _    _                 File          = []
 fieldMapView :: (v -> w) -> Field v a -> Field w a
 fieldMapView _ (Singleton x)   = Singleton x
 fieldMapView _ (Text x)        = Text x
+fieldMapView f (Choices xs i)  = Choices (map (second func) xs) i
+  where func = map (second (second f))
 fieldMapView f (Choice xs i)   = Choice (map (second func) xs) i
   where func = map (second (second f))
 fieldMapView _ (Bool x)        = Bool x

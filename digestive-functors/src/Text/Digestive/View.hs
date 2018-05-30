@@ -205,7 +205,11 @@ fieldInputChoice ref (View _ _ form input _ method) =
     eval' :: Field v b -> [(Text, v, Bool)]
     eval' field = case field of
         Choice xs didx ->
-            let idx = map snd $ evalField method givenInput (Choice xs didx)
+            let idx = snd $ evalField method givenInput (Choice xs didx)
+            in map (\(i, (k, (_, v))) -> (k, v, i == idx)) $
+                 zip [0 ..] $ concat $ map snd xs
+        Choices xs didx ->
+            let idx = map snd $ evalField method givenInput (Choices xs didx)
             in map (\(i, (k, (_, v))) -> (k, v, i `elem` idx)) $
                  zip [0 ..] $ concat $ map snd xs
         f           -> error $ T.unpack ref ++ ": expected (Choice _ _), " ++
@@ -225,7 +229,10 @@ fieldInputChoiceGroup ref (View _ _ form input _ method) =
     eval' :: Field v b -> [(Text, [(Text, v, Bool)])]
     eval' field = case field of
         Choice xs didx ->
-            let idx = map snd $ evalField method givenInput (Choice xs didx)
+            let idx = snd $ evalField method givenInput (Choice xs didx)
+            in merge [idx] xs [0..]
+        Choices xs didx ->
+            let idx = map snd $ evalField method givenInput (Choices xs didx)
             in merge idx xs [0..]
         f           -> error $ T.unpack ref ++ ": expected (Choice _ _), " ++
             "but got: (" ++ show f ++ ")"

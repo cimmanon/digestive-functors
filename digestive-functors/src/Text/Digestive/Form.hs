@@ -146,11 +146,9 @@ choiceWith items def = choiceWith' items def'
 choiceWith'
     :: (Monad m, Monoid v) => [(Text, (a, v))] -> Maybe Int -> Form v m a
 choiceWith' []    _   = error "choice expects a list with at least one item in it"
-choiceWith' items def = fromMaybe defaultItem . listToMaybe . map fst <$> (Pure $ Choice [("", items)] [def'])
+choiceWith' items def = fmap fst $ Pure $ Choice [("", items)] def'
   where
-    defaultItem = fst $ snd $ items !! def'
     def' = fromMaybe 0 def
-
 
 --------------------------------------------------------------------------------
 -- | Returns a 'Formlet' for a value restricted to multiple values from
@@ -183,7 +181,7 @@ choiceWithMultiple items def = choiceWithMultiple' items def'
 -- | A version of 'choiceWithMultiple' for when there is no good 'Eq' instance.
 choiceWithMultiple'
     :: (Monad m, Monoid v) => [(Text, (a, v))] -> Maybe [Int] -> Form v m [a]
-choiceWithMultiple' items def = map fst <$> (Pure $ Choice [("", items)] def')
+choiceWithMultiple' items def = map fst <$> (Pure $ Choices [("", items)] def')
   where
     def' = fromMaybe [] def
 
@@ -239,11 +237,9 @@ groupedChoiceWith' :: (Monad m, Monoid v)
 groupedChoiceWith' items def =
   case concatMap snd items of
     [] -> error "groupedChoice expects a list with at least one item in it"
-    _  -> head . map fst <$> (Pure $ Choice items def')
+    _  -> fmap fst $ Pure $ Choice items def'
   where
-    def' = case def of
-      Just x  -> [x]
-      Nothing -> [0]
+    def' = fromMaybe 0 def
 
 
 --------------------------------------------------------------------------------
@@ -285,7 +281,7 @@ groupedChoiceWithMultiple' :: (Monad m, Monoid v)
                    => [(Text, [(Text, (a, v))])]
                    -> Maybe [Int]
                    -> Form v m [a]
-groupedChoiceWithMultiple' items def = map fst <$> (Pure $ Choice items def')
+groupedChoiceWithMultiple' items def = map fst <$> (Pure $ Choices items def')
   where
     def' = case def of
       Just x  -> x
