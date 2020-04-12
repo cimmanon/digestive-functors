@@ -1,4 +1,5 @@
 --------------------------------------------------------------------------------
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 -- | Provides a datatype to differentiate between regular urlencoding and
 -- multipart encoding for the content of forms and functions to determine
@@ -41,9 +42,17 @@ instance Show FormEncType where
 -- MultiPart when needed
 instance Monoid FormEncType where
     mempty               = UrlEncoded
+
+-- mappend was moved from the Monoid typeclass to the Semigroup typeclass.  Note
+-- that mappend is now an alias for (<>)
+#if !MIN_VERSION_base(4,11,0)
     mappend UrlEncoded x = x
     mappend MultiPart  _ = MultiPart
-
+#else
+instance Semigroup FormEncType where
+    UrlEncoded <> x      = x
+    MultiPart  <> _      = MultiPart
+#endif
 
 --------------------------------------------------------------------------------
 -- Only file uploads require the multipart encoding
